@@ -1,8 +1,8 @@
 {
   "expo": {
     "name": "Rakazo",
-    "slug": "rakazo",
-    "owner": "inbox-zero",
+    "slug": "rakazo-devnogari",
+    "owner": "devnogari",
     "scheme": "rakazo",
     "version": "1.0.2",
     "orientation": "portrait",
@@ -19,7 +19,12 @@
       ],
       "expo-router",
       "expo-secure-store",
-      ["expo-audio", { "enableBackgroundPlayback": false }],
+      [
+        "expo-audio",
+        {
+          "enableBackgroundPlayback": false
+        }
+      ],
       "expo-localization",
       "@react-native-vector-icons/ionicons",
       "@react-native-vector-icons/material-design-icons",
@@ -42,7 +47,7 @@
       "./plugins/with-worklets-headers"
     ],
     "ios": {
-      "bundleIdentifier": "com.rakazo.app",
+      "bundleIdentifier": "com.devnogari.rakazo",
       "buildNumber": "1",
       "supportsTablet": false,
       "icon": "../../packages/ui-tokens/assets/Rakazo.icon",
@@ -59,7 +64,7 @@
       }
     },
     "android": {
-      "package": "com.rakazo.app",
+      "package": "com.devnogari.rakazo",
       "versionCode": 10,
       "softwareKeyboardLayoutMode": "resize",
       "icon": "./assets/icon.png",
@@ -75,15 +80,10 @@
     "extra": {
       "router": {},
       "supportsRTL": true,
-      "eas": {
-        "projectId": "07f7eb04-45e3-47fe-9374-99a2f991131e"
-      }
+      "eas": {}
     },
     "runtimeVersion": {
       "policy": "appVersion"
-    },
-    "updates": {
-      "url": "https://u.expo.dev/07f7eb04-45e3-47fe-9374-99a2f991131e"
     }
   }
 }
