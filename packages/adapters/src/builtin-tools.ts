@@ -246,6 +246,7 @@ export const builtinAgentTools: ConnectorTool[] = [
             },
           },
           required: ["label", "purpose", "credential"],
+          additionalProperties: false,
         },
         {
           type: "object",
@@ -255,6 +256,7 @@ export const builtinAgentTools: ConnectorTool[] = [
             connectionId: { type: "string" },
           },
           required: ["label", "purpose", "connectionId"],
+          additionalProperties: false,
         },
       ],
     },

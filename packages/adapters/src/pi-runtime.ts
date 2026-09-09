@@ -1273,7 +1273,12 @@ export function jsonSchemaParameters(
       typeof Type.Optional
     >;
   }
-  return Type.Object(fields);
+  // Preserve closed objects (e.g. request_secret destination oneOf branches).
+  // Type.Object defaults to open, which would let connectionId+replace match both
+  // anyOf variants after conversion.
+  return schema.additionalProperties === false
+    ? Type.Object(fields, { additionalProperties: false })
+    : Type.Object(fields);
 }
 
 /** TypeBox only builds literals from primitives; anything else throws while the tool list is

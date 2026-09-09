@@ -93,6 +93,17 @@ describe("request_secret parameters", () => {
     ).toMatchObject({ connectionId: "abc" });
   });
 
+  it("rejects connectionId with replace, which belongs only on the credential branch", () => {
+    expect(() =>
+      parseConnectorToolArgs(requestSecretSchema(), {
+        label: "c",
+        purpose: "otp",
+        connectionId: "abc",
+        replace: true,
+      }),
+    ).toThrow();
+  });
+
   it("keeps exclusivity when converted for the PI model", () => {
     const converted = jsonSchemaParameters(requestSecretSchema()) as {
       anyOf?: unknown[];
@@ -101,6 +112,18 @@ describe("request_secret parameters", () => {
     // Type.Union serializes as anyOf; the model must still see two exclusive shapes.
     const variants = converted.anyOf ?? converted.oneOf ?? [];
     expect(variants.length).toBe(2);
+  });
+
+  it("keeps converted destination variants closed so both destinations cannot match", () => {
+    const converted = jsonSchemaParameters(requestSecretSchema()) as {
+      anyOf?: Array<{ additionalProperties?: unknown }>;
+      oneOf?: Array<{ additionalProperties?: unknown }>;
+    };
+    const variants = converted.anyOf ?? converted.oneOf ?? [];
+    expect(variants).toHaveLength(2);
+    for (const variant of variants) {
+      expect(variant.additionalProperties).toBe(false);
+    }
   });
 });
 
