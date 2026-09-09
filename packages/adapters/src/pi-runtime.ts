@@ -1124,13 +1124,6 @@ function builtinParameters(tool: ConnectorTool) {
   if (tool.name === "request_takeover") {
     return Type.Object({ reason: Type.String() });
   }
-  if (tool.name === "request_secret") {
-    return Type.Object({
-      label: Type.String(),
-      purpose: Type.Union([Type.Literal("otp"), Type.Literal("password"), Type.Literal("api_key")]),
-      connectionId: Type.Optional(Type.String()),
-    });
-  }
   if (tool.name === "ask_user") {
     return Type.Object({
       question: Type.String({ maxLength: 240 }),
