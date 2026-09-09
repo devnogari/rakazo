@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { builtinAgentTools } from "./builtin-tools.js";
+import { prepareRequestSecretArguments } from "./pi-runtime.js";
 
 /**
  * `pi-runtime` used to re-declare `request_secret`'s parameters by hand, and the
@@ -42,5 +43,42 @@ describe("request_secret parameters", () => {
     };
     // The executor rejects a call that supplies both or neither.
     expect(Object.keys(schema.properties ?? {})).toContain("connectionId");
+  });
+});
+
+describe("prepareRequestSecretArguments", () => {
+  it("keeps credential, which is what makes the value persist", () => {
+    const credential = {
+      name: "github_pat",
+      origin: "https://api.github.com",
+      auth: { type: "bearer" },
+    };
+    expect(
+      prepareRequestSecretArguments({ label: "GitHub PAT", purpose: "api_key", credential }),
+    ).toEqual({ label: "GitHub PAT", purpose: "api_key", credential });
+  });
+
+  it("keeps replace, so an existing credential can be overwritten", () => {
+    const credential = { name: "x", origin: "https://api.example.com", auth: { type: "bearer" } };
+    const out = prepareRequestSecretArguments({
+      label: "x",
+      purpose: "api_key",
+      credential,
+      replace: true,
+    });
+    expect(out).toMatchObject({ replace: true, credential });
+  });
+
+  it("still passes connectionId for the connector-code path", () => {
+    const out = prepareRequestSecretArguments({ label: "c", purpose: "otp", connectionId: "abc" });
+    expect(out).toEqual({ label: "c", purpose: "otp", connectionId: "abc" });
+  });
+
+  it("omits credential and connectionId when absent rather than sending empties", () => {
+    // The executor rejects a call that carries both, so neither may be faked in.
+    expect(prepareRequestSecretArguments({ label: "c", purpose: "otp" })).toEqual({
+      label: "c",
+      purpose: "otp",
+    });
   });
 });
