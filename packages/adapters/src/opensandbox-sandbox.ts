@@ -80,7 +80,11 @@ export class OpenSandboxProvider implements SandboxProvider {
   private readonly execdBases = new Map<string, string>();
 
   constructor(private readonly opts: OpenSandboxOptions) {
-    this.base = opts.url.replace(/\/+$/, "");
+    // Accept the base with or without the version segment. Operators reasonably
+    // configure the URL they see in the spec (".../v1"), and silently doubling
+    // it produces a 404 that reads like the server is missing, not a config
+    // typo.
+    this.base = opts.url.replace(/\/+$/, "").replace(/\/v1$/, "");
     this.image = opts.image?.trim() || DEFAULT_IMAGE;
   }
 

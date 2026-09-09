@@ -229,3 +229,18 @@ describe("OpenSandboxProvider.describe", () => {
     expect(capabilities.persistentHome).toBe(true);
   });
 });
+
+describe("OpenSandboxProvider base url", () => {
+  it("does not double the version segment when the url already ends in /v1", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ id: "sbx-9" }), { status: 202 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const withVersion = new OpenSandboxProvider({ url: `${BASE}/v1`, apiKey: "key" });
+    await withVersion.provision({ botId: "bot-1", homePath: "/home" }, context());
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(`${BASE}/v1/sandboxes`);
+    vi.unstubAllGlobals();
+  });
+});
