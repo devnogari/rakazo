@@ -43,6 +43,9 @@ export interface AppEnv {
   daytonaTarget: string | undefined;
   boxApiKey: string | undefined;
   boxApiUrl: string | undefined;
+  openSandboxApiKey: string | undefined;
+  openSandboxUrl: string | undefined;
+  openSandboxImage: string | undefined;
   composioApiKey: string | undefined;
   /** Optional integrations.sh-compatible catalog base URL. */
   integrationsCatalogUrl: string | undefined;
@@ -131,6 +134,9 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): AppEnv {
     daytonaTarget: source.DAYTONA_TARGET,
     boxApiKey: source.BOX_API_KEY,
     boxApiUrl: source.BOX_API_URL ?? source.BOX_BASE_URL,
+    openSandboxApiKey: source.OPENSANDBOX_API_KEY,
+    openSandboxUrl: source.OPENSANDBOX_URL,
+    openSandboxImage: source.OPENSANDBOX_IMAGE,
     composioApiKey: source.COMPOSIO_API_KEY,
     integrationsCatalogUrl: optional(source.INTEGRATIONS_CATALOG_URL),
     pipedreamClientId: optional(source.PIPEDREAM_CLIENT_ID),

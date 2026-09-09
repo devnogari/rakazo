@@ -80,6 +80,9 @@ async function main() {
     daytonaTarget: process.env.DAYTONA_TARGET,
     boxApiKey: process.env.BOX_API_KEY,
     boxApiUrl: process.env.BOX_API_URL ?? process.env.BOX_BASE_URL,
+    openSandboxApiKey: process.env.OPENSANDBOX_API_KEY,
+    openSandboxUrl: process.env.OPENSANDBOX_URL,
+    openSandboxImage: process.env.OPENSANDBOX_IMAGE,
     dataDir,
     prisma,
   });

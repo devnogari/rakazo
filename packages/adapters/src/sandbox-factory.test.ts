@@ -45,7 +45,7 @@ describe("createSandboxProvider", () => {
 
   it("throws on unknown provider", () => {
     expect(() => createSandboxProvider("bogus", {})).toThrow(
-      'Unknown SANDBOX_PROVIDER "bogus". Use none | docker | e2b | daytona | box | e2b-emulator | daytona-emulator | box-emulator | desktop | fake.',
+      'Unknown SANDBOX_PROVIDER "bogus". Use none | docker | e2b | daytona | box | opensandbox | e2b-emulator | daytona-emulator | box-emulator | desktop | fake.',
     );
   });
 });
