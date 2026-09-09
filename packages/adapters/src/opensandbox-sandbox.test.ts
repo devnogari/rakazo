@@ -268,9 +268,22 @@ describe("commandStringFor", () => {
     expect(commandStringFor(["bash", "-c", "echo hi"])).toBe("echo hi");
   });
 
-  it("preserves positional arguments that follow the script", () => {
-    const command = commandStringFor(["bash", "-c", 'echo "$1"', "probe", "value"]);
-    expect(command).toBe("set -- 'probe' 'value'\necho \"$1\"");
+  it("drops the argv0 label so positional numbering matches bash -c", () => {
+    // Rakazo sends ["bash","-c",script,"rakazo-background-launch",markerId].
+    // bash assigns that label to $0, so only what follows is $1.., and the
+    // script's $1 must be the marker rather than the label.
+    const command = commandStringFor([
+      "bash",
+      "-c",
+      'echo "$1"',
+      "rakazo-background-launch",
+      "marker-id",
+    ]);
+    expect(command).toBe("set -- 'marker-id'\necho \"$1\"");
+  });
+
+  it("returns the bare script when only an argv0 label follows it", () => {
+    expect(commandStringFor(["bash", "-c", "echo hi", "label"])).toBe("echo hi");
   });
 
   it("quotes a plain argv so arguments survive the shell", () => {

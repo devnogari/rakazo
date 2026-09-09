@@ -83,10 +83,12 @@ function isExecutableMode(mode: number | undefined): boolean {
 export function commandStringFor(argv: readonly string[]): string {
   const shellIndex = argv.findIndex((entry) => entry === "-c");
   if (shellIndex > 0 && argv[shellIndex + 1] !== undefined) {
-    // Everything after the script is positional; execd gives us no way to pass
-    // them, so fold them in explicitly with `set --`.
     const script = argv[shellIndex + 1] as string;
-    const positional = argv.slice(shellIndex + 2);
+    // `bash -c script name arg1` assigns the first trailing word to $0 and the
+    // rest to $1.., but `set --` starts at $1. Dropping that first word keeps
+    // the numbering the script expects; otherwise every positional shifts by
+    // one and $1 lands on the argv0 label.
+    const positional = argv.slice(shellIndex + 3);
     if (positional.length === 0) return script;
     return `set -- ${positional.map(shellQuote).join(" ")}\n${script}`;
   }
