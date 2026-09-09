@@ -244,3 +244,19 @@ describe("OpenSandboxProvider base url", () => {
     vi.unstubAllGlobals();
   });
 });
+
+describe("OpenSandboxProvider.provision request body", () => {
+  it("always sends resourceLimits, which the server requires without a poolRef", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ id: "sbx-3" }), { status: 202 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await provider().provision({ botId: "bot-1", homePath: "/home" }, context());
+
+    const body = JSON.parse((fetchMock.mock.calls[0]?.[1] as RequestInit).body as string);
+    expect(body.resourceLimits).toEqual({ cpu: "1", memory: "1Gi" });
+    expect(body.image.uri).toBe("python:3.11-slim");
+    vi.unstubAllGlobals();
+  });
+});

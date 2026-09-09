@@ -51,7 +51,13 @@ interface OpenSandboxOptions {
   url: string;
   apiKey: string;
   image?: string;
+  cpu?: string;
+  memory?: string;
 }
+
+/** The server rejects a create without limits when no pool is referenced. */
+const DEFAULT_CPU = "1";
+const DEFAULT_MEMORY = "1Gi";
 
 interface CommandOutcome {
   commandId?: string;
@@ -195,6 +201,12 @@ export class OpenSandboxProvider implements SandboxProvider {
           image: { uri: this.image },
           entrypoint: ["tail", "-f", "/dev/null"],
           timeout: SANDBOX_TTL_SECONDS,
+          // Required by the server unless a poolRef is given; omitting it is a
+          // 422, not a default.
+          resourceLimits: {
+            cpu: this.opts.cpu?.trim() || DEFAULT_CPU,
+            memory: this.opts.memory?.trim() || DEFAULT_MEMORY,
+          },
           metadata: { botId: request.botId, managedBy: "rakazo" },
         }),
       },
