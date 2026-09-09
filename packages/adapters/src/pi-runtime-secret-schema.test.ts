@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { builtinAgentTools } from "./builtin-tools.js";
-import { prepareRequestSecretArguments } from "./pi-runtime.js";
+import { jsonField, prepareRequestSecretArguments } from "./pi-runtime.js";
 
 /**
  * `pi-runtime` used to re-declare `request_secret`'s parameters by hand, and the
@@ -80,5 +80,28 @@ describe("prepareRequestSecretArguments", () => {
       label: "c",
       purpose: "otp",
     });
+  });
+});
+
+describe("jsonField union handling", () => {
+  it("converts a discriminated union instead of defaulting to string", () => {
+    // BotSecretAuth converts to oneOf with no sibling `type`. Treating that as a
+    // string told the model to send `auth: "bearer"`, which the executor then
+    // rejected -- observed twice against the live deployment.
+    const authSchema = {
+      oneOf: [
+        { type: "object", properties: { type: { type: "string", const: "bearer" } } },
+        {
+          type: "object",
+          properties: { type: { type: "string", const: "header" }, name: { type: "string" } },
+        },
+      ],
+    };
+    // A string schema converts to {type:"string"}; a union must not.
+    expect((jsonField(authSchema) as { type?: string }).type).not.toBe("string");
+  });
+
+  it("still treats a plain string schema as a string", () => {
+    expect((jsonField({ type: "string" }) as { type?: string }).type).toBe("string");
   });
 });
