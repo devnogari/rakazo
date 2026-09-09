@@ -1274,11 +1274,22 @@ function enumUnion(values: readonly unknown[]) {
   return members.every((member) => member !== undefined) ? Type.Union(members) : undefined;
 }
 
-function jsonField(spec: unknown): ReturnType<typeof Type.String> {
+export function jsonField(spec: unknown): ReturnType<typeof Type.String> {
   const definition = spec && typeof spec === "object" ? (spec as Record<string, unknown>) : {};
   if (Array.isArray(definition.enum) && definition.enum.length > 0) {
     const union = enumUnion(definition.enum);
     if (union) return union as never;
+  }
+  // A discriminated union arrives as oneOf/anyOf with no sibling `type`. Without
+  // this branch it fell through to the string default, so a model was told to
+  // send an object-valued field as a bare string -- which is exactly what it did.
+  const variants = Array.isArray(definition.oneOf)
+    ? definition.oneOf
+    : Array.isArray(definition.anyOf)
+      ? definition.anyOf
+      : undefined;
+  if (variants && variants.length > 0) {
+    return Type.Union(variants.map((variant) => jsonField(variant))) as never;
   }
   const type = "type" in definition ? String(definition.type) : "string";
   if (type === "number" || type === "integer") return Type.Number() as never;
