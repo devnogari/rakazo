@@ -105,3 +105,19 @@ describe("jsonField union handling", () => {
     expect((jsonField({ type: "string" }) as { type?: string }).type).toBe("string");
   });
 });
+
+describe("jsonField const handling", () => {
+  it("preserves a const so the model knows the only accepted value", () => {
+    // BotSecretAuth's discriminator is {type: {type:"string", const:"bearer"}}.
+    // Degrading that to a plain string left the model guessing: recorded calls
+    // sent auth.type as "api_key" and "authorization_bearer" before this.
+    // enumUnion wraps literals, so the value lands inside a single-member union.
+    expect(JSON.stringify(jsonField({ type: "string", const: "bearer" }))).toContain(
+      '"const":"bearer"',
+    );
+  });
+
+  it("leaves a plain string alone", () => {
+    expect(JSON.stringify(jsonField({ type: "string" }))).not.toContain("const");
+  });
+});
