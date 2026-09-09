@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { OpenSandboxProvider } from "./opensandbox-sandbox.js";
+import { commandStringFor, OpenSandboxProvider } from "./opensandbox-sandbox.js";
 
 const BASE = "http://opensandbox.test";
 const SANDBOX_ID = "sbx-1";
@@ -258,5 +258,28 @@ describe("OpenSandboxProvider.provision request body", () => {
     expect(body.resourceLimits).toEqual({ cpu: "1", memory: "1Gi" });
     expect(body.image.uri).toBe("python:3.11-slim");
     vi.unstubAllGlobals();
+  });
+});
+
+describe("commandStringFor", () => {
+  it("keeps the script when argv is a bash -c invocation", () => {
+    // Joining with spaces would drop the script and leave `bash -c echo hi`,
+    // which the shell reports as `bash: line N: : No such file or directory`.
+    expect(commandStringFor(["bash", "-c", "echo hi"])).toBe("echo hi");
+  });
+
+  it("preserves positional arguments that follow the script", () => {
+    const command = commandStringFor(["bash", "-c", 'echo "$1"', "probe", "value"]);
+    expect(command).toBe("set -- 'probe' 'value'\necho \"$1\"");
+  });
+
+  it("quotes a plain argv so arguments survive the shell", () => {
+    expect(commandStringFor(["ls", "a b"])).toBe("'ls' 'a b'");
+  });
+
+  it("escapes single quotes rather than breaking out of the quoting", () => {
+    // POSIX has no escape inside single quotes, so the quote is closed,
+    // an escaped quote is emitted, and quoting resumes.
+    expect(commandStringFor(["echo", "it's"])).toBe("'echo' 'it'\\''s'");
   });
 });

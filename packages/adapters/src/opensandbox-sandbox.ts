@@ -73,6 +73,30 @@ function isExecutableMode(mode: number | undefined): boolean {
     : Math.floor(mode / 100) % 2 === 1;
 }
 
+/**
+ * execd takes one string and runs it through a shell, but callers pass real
+ * argv. Joining with spaces is wrong for the shape Rakazo actually sends —
+ * `["bash", "-c", script, argv0, arg1]` — because the trailing words become
+ * `$0`/`$1` of the joined string rather than staying arguments, and the script
+ * itself is lost. That surfaces as `bash: line N: : No such file or directory`.
+ */
+export function commandStringFor(argv: readonly string[]): string {
+  const shellIndex = argv.findIndex((entry) => entry === "-c");
+  if (shellIndex > 0 && argv[shellIndex + 1] !== undefined) {
+    // Everything after the script is positional; execd gives us no way to pass
+    // them, so fold them in explicitly with `set --`.
+    const script = argv[shellIndex + 1] as string;
+    const positional = argv.slice(shellIndex + 2);
+    if (positional.length === 0) return script;
+    return `set -- ${positional.map(shellQuote).join(" ")}\n${script}`;
+  }
+  return argv.map(shellQuote).join(" ");
+}
+
+function shellQuote(value: string): string {
+  return `'${value.replaceAll("'", `'\\''`)}'`;
+}
+
 function joinWorkspace(target: string): string {
   if (!target) return WORKSPACE_ROOT;
   if (target.startsWith("/")) return target;
@@ -315,8 +339,7 @@ export class OpenSandboxProvider implements SandboxProvider {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          // execd runs this through a shell, so the argv has to be one string.
-          command: request.argv.join(" "),
+          command: commandStringFor(request.argv),
           cwd: joinWorkspace(request.cwd ?? ""),
           ...(request.env ? { envs: request.env } : {}),
           timeout: timeoutMs,
