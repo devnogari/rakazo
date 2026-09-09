@@ -9,7 +9,8 @@
       "environment": "preview",
       "channel": "preview",
       "ios": {
-        "image": "macos-tahoe-26.5-xcode-26.6"
+        "image": "macos-tahoe-26.5-xcode-26.6",
+        "appleTeamId": "M85AGDM5A8"
       }
     },
     "production": {
@@ -17,11 +18,16 @@
       "environment": "production",
       "channel": "production",
       "ios": {
-        "image": "macos-tahoe-26.5-xcode-26.6"
+        "image": "macos-tahoe-26.5-xcode-26.6",
+        "appleTeamId": "M85AGDM5A8"
       }
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "appleTeamId": "M85AGDM5A8"
+      }
+    }
   }
 }
