@@ -1280,6 +1280,13 @@ export function jsonField(spec: unknown): ReturnType<typeof Type.String> {
     const union = enumUnion(definition.enum);
     if (union) return union as never;
   }
+  // A `const` names the only accepted value. Without this it degraded to a bare
+  // string, so a discriminator like {type: {const: "bearer"}} told the model
+  // nothing about which value to send -- and it guessed, twice.
+  if ("const" in definition) {
+    const literal = enumUnion([definition.const]);
+    if (literal) return literal as never;
+  }
   // A discriminated union arrives as oneOf/anyOf with no sibling `type`. Without
   // this branch it fell through to the string default, so a model was told to
   // send an object-valued field as a bare string -- which is exactly what it did.
