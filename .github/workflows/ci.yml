@@ -65,14 +65,15 @@ jobs:
           BETTER_AUTH_SECRET: ci-build-auth-secret-at-least-32-characters
           ENCRYPTION_KEY: ci-build-encryption-key-at-least-32-characters
       - name: Electron smoke
-        run: xvfb-run --auto-servernum pnpm --filter @rakazo/desktop exec playwright test --config e2e/playwright.config.ts
-      - name: Upload desktop setup screenshots
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p ci-logs
+          xvfb-run --auto-servernum pnpm --filter @rakazo/desktop exec playwright test --config e2e/playwright.config.ts 2>&1 | tee ci-logs/ci.yml-0.log
+      - name: Summarize CI diagnostics
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: desktop-e2e-screenshots
-          path: apps/desktop/e2e/screenshots
-          if-no-files-found: ignore
+        shell: bash
+        run: bash .github/scripts/ci-summary.sh ci-logs test-report apps/desktop/test-results apps/web/test-results apps/www/test-results
 
   test:
     name: Unit tests
@@ -111,8 +112,6 @@ jobs:
   test-e2e:
     name: Web E2E
     uses: ./.github/workflows/playwright.yml
-    with:
-      upload_artifacts: true
 
   publish-mobile-update:
     name: Publish compatible mobile update

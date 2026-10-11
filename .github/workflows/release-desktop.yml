@@ -243,42 +243,52 @@ jobs:
           test -f apps/desktop/out/latest-linux.yml
           grep -Fqx "version: $RELEASE_VERSION" apps/desktop/out/latest-linux.yml
 
-      - name: Retain installers and updater metadata
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: desktop-${{ matrix.artifact }}-${{ needs.validate.outputs.sha }}
-          path: |
-            apps/desktop/out/*.AppImage
-            apps/desktop/out/*.blockmap
-            apps/desktop/out/*.dmg
-            apps/desktop/out/*.exe
-            apps/desktop/out/latest*.yml
-            apps/desktop/out/*.zip
-          if-no-files-found: error
-          compression-level: 0
-          retention-days: 7
+      - name: Verify the complete stable update feed
+        shell: bash
+        env:
+          RELEASE_VERSION: ${{ needs.validate.outputs.version }}
+          PLATFORM: ${{ matrix.artifact }}
+        run: |
+          set -euo pipefail
+          cd apps/desktop/out
+          case "$PLATFORM" in
+            macos)
+              test -f latest-mac.yml
+              compgen -G '*.dmg' >/dev/null
+              compgen -G '*.zip' >/dev/null
+              feeds=(latest-mac.yml)
+              ;;
+            linux)
+              test -f latest-linux.yml
+              compgen -G '*.AppImage' >/dev/null
+              feeds=(latest-linux.yml)
+              ;;
+            windows)
+              test -f latest.yml
+              compgen -G '*.exe' >/dev/null
+              feeds=(latest.yml)
+              ;;
+            *) exit 1 ;;
+          esac
+          for feed in "${feeds[@]}"; do
+            grep -Fqx "version: $RELEASE_VERSION" "$feed"
+          done
+          find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 |
+            sort -z | xargs -0 sha256sum > SHA256SUMS
 
   publish:
-    name: Attest and publish complete release
+    name: Publish release notes (no binary assets)
     needs: [validate, build]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
-      actions: read
-      attestations: write
       contents: write
-      id-token: write
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           fetch-depth: 0
           persist-credentials: false
           ref: ${{ needs.validate.outputs.sha }}
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
-        with:
-          pattern: desktop-*-${{ needs.validate.outputs.sha }}
-          path: release-artifacts
-          merge-multiple: true
       - name: Verify the complete stable update feed
         env:
           RELEASE_SHA: ${{ needs.validate.outputs.sha }}
@@ -294,41 +304,13 @@ jobs:
             exit 1
           fi
 
-          test -f release-artifacts/latest-mac.yml
-          test -f release-artifacts/latest-linux.yml
-          compgen -G 'release-artifacts/*.dmg' >/dev/null
-          compgen -G 'release-artifacts/*.zip' >/dev/null
-          compgen -G 'release-artifacts/*.AppImage' >/dev/null
-          feeds=(
-            release-artifacts/latest-mac.yml
-            release-artifacts/latest-linux.yml
-          )
-          if [[ "$WINDOWS_BUILT" == "true" ]]; then
-            test -f release-artifacts/latest.yml
-            compgen -G 'release-artifacts/*.exe' >/dev/null
-            feeds+=(release-artifacts/latest.yml)
-          fi
-          for feed in "${feeds[@]}"; do
-            grep -Fqx "version: $RELEASE_VERSION" "$feed"
-          done
-
-          (
-            cd release-artifacts
-            find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 |
-              sort -z |
-              xargs -0 sha256sum > SHA256SUMS
-          )
-      - name: Attest release provenance
-        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
-        with:
-          subject-path: release-artifacts/*
-      - name: Create draft and upload every platform
+      - name: Create release notes without binary assets
         id: create_release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ needs.validate.outputs.tag }}
         run: >-
-          gh release create "$RELEASE_TAG" release-artifacts/*
+          gh release create "$RELEASE_TAG"
           --draft --generate-notes --title "Rakazo $RELEASE_TAG" --verify-tag
       - name: Publish the completed release
         env:

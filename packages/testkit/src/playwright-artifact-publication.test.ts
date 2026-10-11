@@ -84,23 +84,22 @@ with zipfile.ZipFile(sys.argv[1], "w") as archive:
 }
 
 describe("Playwright artifact publication boundary", () => {
-  it("keeps extraction and explicit report inputs outside the trusted checkout", () => {
-    expect(workflow).not.toContain("actions/download-artifact@");
-    expect(workflow).toContain(
-      'gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}/zip" > "$RUNNER_TEMP/playwright-artifacts.zip"',
-    );
-    expect(workflow).toContain(
-      'python3 scripts/extract-playwright-artifacts.py \\\n            "$RUNNER_TEMP/playwright-artifacts.zip" "$RUNNER_TEMP/playwright-artifacts"',
-    );
-    expect(workflow).toContain(
-      "PLAYWRIGHT_REPORT_DIR: ${{ runner.temp }}/playwright-artifacts/playwright-report",
-    );
-    expect(workflow).toContain(
-      "PLAYWRIGHT_TEST_RESULTS_DIR: ${{ runner.temp }}/playwright-artifacts/apps/web/test-results",
-    );
+  it("summarizes run diagnostics without downloading or publishing contributor artifacts", () => {
+    expect(workflow).not.toMatch(/actions\/(?:upload|download)-artifact@/);
+    expect(workflow).not.toContain("/actions/artifacts/");
+    expect(workflow).not.toContain("extract-playwright-artifacts.py");
+    expect(workflow).not.toContain("scripts/publish-playwright-report.sh");
+    expect(workflow).not.toContain("PLAYWRIGHT_REPORT_DIR:");
+    expect(workflow).not.toContain("PLAYWRIGHT_TEST_RESULTS_DIR:");
     expect(workflow).toContain("ref: ${{ github.event.repository.default_branch }}");
     expect(workflow).toContain("persist-credentials: false");
-    expect(workflow).toContain("run: bash scripts/publish-playwright-report.sh");
+    expect(workflow).toContain(
+      'gh run view "$RUN_ID" --repo "$GITHUB_REPOSITORY" --log > ci-logs/completed-run.log',
+    );
+    expect(workflow).toContain(
+      `printf 'Playwright diagnostics: %s\\n' "$RUN_URL" >> "$GITHUB_STEP_SUMMARY"`,
+    );
+    expect(workflow).toContain("bash .github/scripts/ci-summary.sh ci-logs");
     expect(workflow).not.toContain("working-directory:");
   });
 
