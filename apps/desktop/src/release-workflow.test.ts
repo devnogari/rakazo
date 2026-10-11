@@ -29,14 +29,18 @@ describe("desktop release workflow", () => {
     expect(workflow).toContain("codesign --verify --deep --strict");
     expect(workflow).toContain("Get-AuthenticodeSignature");
     expect(workflow).toContain("needs: [validate, build]");
-    expect(workflow).toContain("attestations: write");
-    expect(workflow).toContain("actions/attest-build-provenance@");
+    expect(workflow).not.toContain("attestations: write");
+    expect(workflow).not.toContain("actions/attest-build-provenance@");
+    expect(workflow).not.toMatch(/actions\/(?:upload|download)-artifact@/);
+    expect(workflow).not.toContain("gh release upload");
+    expect(workflow).toContain("Publish release notes (no binary assets)");
     expect(workflow).not.toContain("--publish always");
     expect(workflow).toContain("DESKTOP_MAC_CSC_LINK");
     expect(workflow).toContain("DESKTOP_WIN_CSC_LINK");
     expect(workflow).not.toMatch(/secrets\.DESKTOP_CSC_(?:LINK|KEY_PASSWORD)/);
     expect(workflow).not.toContain("cache: pnpm");
-    expect(workflow).toContain("apps/desktop/out/latest*.yml");
+    expect(workflow).toContain("cd apps/desktop/out");
+    expect(workflow).toContain(`for feed in "\${feeds[@]}"; do`);
     expect(workflow).not.toContain("apps/desktop/out/*.yml");
   });
 
@@ -70,8 +74,10 @@ describe("desktop release workflow", () => {
     );
     expect(workflow.split("windows-2022")).toHaveLength(2);
     expect(workflow).toContain(`WINDOWS_BUILT: ${expression("needs.validate.outputs.windows")}`);
-    expect(workflow).toContain('if [[ "$WINDOWS_BUILT" == "true" ]]; then');
-    expect(workflow).toContain("feeds+=(release-artifacts/latest.yml)");
+    expect(workflow).toMatch(
+      /windows\)\n\s+test -f latest.yml\n\s+compgen -G '\*.exe' >\/dev\/null\n\s+feeds=\(latest.yml\)/,
+    );
+    expect(workflow).not.toContain("release-artifacts/");
   });
 
   it("pins every platform update feed to the official GitHub owner and repo", () => {
