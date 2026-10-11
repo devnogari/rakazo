@@ -152,11 +152,7 @@ jobs:
           MOBILE_SHA: ${{ github.sha }}
         run: bash scripts/publish-mobile-screenshot-gallery.sh
 
-      - name: Upload screenshots and diagnostics
+      - name: Summarize CI diagnostics
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: mobile-android-screenshots-${{ github.run_id }}-${{ github.run_attempt }}
-          path: test-report/mobile-screenshots
-          if-no-files-found: error
-          retention-days: 7
+        shell: bash
+        run: bash .github/scripts/ci-summary.sh ci-logs test-report apps/desktop/test-results apps/web/test-results apps/www/test-results

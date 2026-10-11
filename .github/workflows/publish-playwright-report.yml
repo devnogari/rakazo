@@ -8,8 +8,6 @@ on:
 permissions:
   actions: read
   contents: read
-  issues: write
-  pull-requests: write
 
 concurrency:
   group: playwright-publication
@@ -75,111 +73,15 @@ jobs:
             echo "::warning::Could not resolve a pull request for ${HEAD_OWNER}:${HEAD_BRANCH} at ${HEAD_SHA}."
           fi
           echo "number=$number" >> "$GITHUB_OUTPUT"
-      - name: Check for Playwright artifact
-        id: artifact
+      - name: Summarize completed Playwright run
         env:
-          ARTIFACT_NAME: playwright-artifacts-${{ github.event.workflow_run.id }}-${{ github.event.workflow_run.run_attempt }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PLAYWRIGHT_JOB_RESULT: ${{ steps.playwright.outputs.job_result }}
           RUN_ID: ${{ github.event.workflow_run.id }}
-        shell: bash
-        run: |
-          artifacts="$(gh api --method GET \
-            "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}/artifacts?name=${ARTIFACT_NAME}")"
-          count="$(jq --arg name "$ARTIFACT_NAME" \
-            '[.artifacts[] | select(.name == $name and .expired == false)] | length' \
-            <<<"$artifacts")"
-          if [[ "$count" == "1" ]]; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-            echo "id=$(jq -r --arg name "$ARTIFACT_NAME" '.artifacts[] | select(.name == $name and .expired == false) | .id' <<<"$artifacts")" >> "$GITHUB_OUTPUT"
-          elif [[ "$count" == "0" && "$PLAYWRIGHT_JOB_RESULT" == "timed_out" ]]; then
-            echo "::warning::The timed-out Playwright job ended before it uploaded an artifact. Publishing an empty gallery."
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "Expected exactly one unexpired Playwright artifact; found $count." >&2
-            exit 1
-          fi
-      - name: Download Playwright artifacts
-        if: steps.artifact.outputs.exists == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ARTIFACT_ID: ${{ steps.artifact.outputs.id }}
-        shell: bash
-        run: |
-          gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}/zip" > "$RUNNER_TEMP/playwright-artifacts.zip"
-          # Keep untrusted files outside the checkout, dependencies, configuration,
-          # and generated dashboard consumed by the comment step.
-          python3 scripts/extract-playwright-artifacts.py \
-            "$RUNNER_TEMP/playwright-artifacts.zip" "$RUNNER_TEMP/playwright-artifacts"
-      - name: Publish trusted Playwright screenshot gallery
-        id: publish
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: ${{ vars.S3_REGION }}
-          AWS_EC2_METADATA_DISABLED: "true"
-          S3_BUCKET: ${{ vars.S3_BUCKET }}
-          S3_ENDPOINT: ${{ vars.S3_ENDPOINT }}
-          PLAYWRIGHT_PUBLIC_BASE_URL: ${{ vars.PLAYWRIGHT_PUBLIC_BASE_URL }}
-          PLAYWRIGHT_RESULT: ${{ steps.playwright.outputs.result }}
-          PLAYWRIGHT_RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
-          PLAYWRIGHT_RUN_ID: ${{ github.event.workflow_run.id }}
-          PLAYWRIGHT_RUN_NUMBER: ${{ github.event.workflow_run.run_number }}
-          PLAYWRIGHT_RUN_URL: ${{ github.event.workflow_run.html_url }}
-          PLAYWRIGHT_SHA: ${{ github.event.workflow_run.head_sha }}
-          PLAYWRIGHT_EVENT: ${{ github.event.workflow_run.event }}
-          PLAYWRIGHT_BRANCH: ${{ github.event.workflow_run.head_branch }}
-          PLAYWRIGHT_PR_NUMBER: ${{ steps.pull_request.outputs.number }}
-          PLAYWRIGHT_REPOSITORY_URL: ${{ github.server_url }}/${{ github.repository }}
-          PLAYWRIGHT_PUBLISH_REPORT: ${{ github.event.workflow_run.event == 'push' }}
-          PLAYWRIGHT_REPORT_DIR: ${{ runner.temp }}/playwright-artifacts/playwright-report
-          PLAYWRIGHT_TEST_RESULTS_DIR: ${{ runner.temp }}/playwright-artifacts/apps/web/test-results
-        run: bash scripts/publish-playwright-report.sh
-      - name: Link screenshot gallery from pull request
-        if: >-
-          github.event.workflow_run.event == 'pull_request' &&
-          steps.pull_request.outputs.number != '' &&
-          steps.publish.outputs.latest_pr_run == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PLAYWRIGHT_PUBLIC_BASE_URL: ${{ vars.PLAYWRIGHT_PUBLIC_BASE_URL }}
-          PR_NUMBER: ${{ steps.pull_request.outputs.number }}
           RUN_URL: ${{ github.event.workflow_run.html_url }}
-          SHA: ${{ github.event.workflow_run.head_sha }}
         shell: bash
         run: |
-          if [[ ! "$PR_NUMBER" =~ ^[1-9][0-9]*$ ]]; then
-            echo "PR_NUMBER must be a positive integer." >&2
-            exit 1
-          fi
-          public_base_url="${PLAYWRIGHT_PUBLIC_BASE_URL%/}"
-          gallery_url="$public_base_url/prs/$PR_NUMBER/index.html"
-          review_path="$GITHUB_WORKSPACE/.tmp/playwright-dashboard/screenshots/review.json"
-          if [[ ! -f "$review_path" ]]; then
-            echo "Missing Playwright review manifest at $review_path." >&2
-            exit 1
-          fi
-          changed_paths_file="$(mktemp)"
-          gh api --paginate \
-            "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/files?per_page=100" \
-            --jq '.[].filename' > "$changed_paths_file"
-          body="$(
-            PLAYWRIGHT_GALLERY_URL="$gallery_url" \
-            PLAYWRIGHT_DASHBOARD_URL="$public_base_url/index.html" \
-            PLAYWRIGHT_RUN_URL="$RUN_URL" \
-            PLAYWRIGHT_SHA="$SHA" \
-              pnpm exec tsx packages/testkit/src/cli/build-playwright-pr-screenshot-comment.ts \
-                "$review_path" \
-                "$changed_paths_file"
-          )"
-          marker="<!-- rakazo-playwright-screenshots -->"
-          comment_id="$(gh api --paginate --slurp \
-            "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments?per_page=100" | \
-            jq -r --arg marker "$marker" \
-              '[.[][] | select(.user.login == "github-actions[bot]" and (.body | contains($marker)))] | last | .id // empty')"
-          payload="$(jq -n --arg body "$body" '{body: $body}')"
-          if [[ -n "$comment_id" ]]; then
-            gh api --method PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${comment_id}" --input - <<<"$payload"
-          else
-            gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" --input - <<<"$payload"
-          fi
+          set -euo pipefail
+          mkdir -p ci-logs
+          gh run view "$RUN_ID" --repo "$GITHUB_REPOSITORY" --log > ci-logs/completed-run.log
+          printf 'Playwright diagnostics: %s\n' "$RUN_URL" >> "$GITHUB_STEP_SUMMARY"
+          bash .github/scripts/ci-summary.sh ci-logs
